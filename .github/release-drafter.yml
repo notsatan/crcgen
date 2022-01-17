@@ -1,0 +1,42 @@
+
+name-template: 'v$RESOLVED_VERSION'
+tag-template: 'v$RESOLVED_VERSION'
+
+categories:
+  - title: ':lock: Security Issues'
+    labels: [security]
+
+  - title: ':rocket: Updates'
+    labels: [enhancement, feature, update]
+
+  - title: ':bug: Bug Fixes'
+    labels: [bug, bugfix, fix, hotfix]
+
+  - title: ':memo: Documentation'
+    labels: [documentation]
+
+  - title: ':construction: Work in Progress'
+    labels: [wip, in-progress, incomplete, partial]
+
+  - title: ':package: Dependencies'
+    labels: [dependencies, dependency]
+
+  - title: ":test_tube: Tests and Refactor"
+    labels: [refactoring, refactor, tests, testing]
+
+  - title: ":robot: CI/CD and Pipelines"
+    labels: [build, ci, pipeline]
+
+change-template: '- $TITLE (#$NUMBER) - @$AUTHOR'
+change-title-escapes: '\<*_&' # You can add # and @ to disable mentions, and add ` to disable code blocks.
+version-resolver:
+  minor:
+    labels: [major]
+  patch:
+    labels: [patch, minor]
+  default: minor
+
+template: |
+  ## Here's What Changed
+
+  $CHANGES
