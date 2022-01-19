@@ -1,14 +1,30 @@
 /*
-Package logger exposes a simple logging interface for the application
+Package logger exposes a simple logging interface for the application. The package is
+responsible for writing all application logs, which, by default, are written at
+to `stderr` for events at warn level or above.
+
+The behavior of the logger can be modified using the `logger.Log()` function to write
+all logs at debug level or above to `stderr`, and a text file named `logs.txt`
+
+To safely close the logger, use `logger.Stop()`
 */
 package logger
 
 import (
 	"os"
+	"runtime"
+	"strings"
 	"time"
 
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+)
+
+const (
+	pkgName = "logger"
+
+	osLinux = "linux"
 )
 
 var (
@@ -16,7 +32,19 @@ var (
 	logWriter = zapcore.WriteSyncer(os.Stderr) // no logs written by default
 
 	// logLevel indicates the minimum log level required for an event to be logged
-	logLevel = zap.NewAtomicLevelAt(zap.InfoLevel)
+	logLevel = zap.NewAtomicLevelAt(zap.WarnLevel)
+
+	// streamCloser is used to close the log stream (when writing logs to a file), gets
+	// overwritten by an actual function when a file is opened in `logger.Log`
+	streamCloser = func() {}
+)
+
+var (
+	// openLogFile maps the zap.Open function
+	openLogFile = zap.Open
+
+	// sync attempts to sync an instance of zap.SugaredLogger
+	sync = (*zap.SugaredLogger).Sync
 )
 
 /*
@@ -56,6 +84,41 @@ var zapLogger = zap.New(
 	),
 ).Sugar()
 
-func init() {
-	zapLogger.Info("Logger is running")
+/*
+Log modifies the logger to log events at or above zap.DebugLevel, and write logs to
+a file
+*/
+func Log(writeToFile bool) (err error) {
+	logLevel.SetLevel(zap.DebugLevel)
+
+	if writeToFile {
+		logWriter, streamCloser, err = openLogFile([]string{
+			// Write logs to `stderr` and a file named `logs.txt`
+			"stderr", "logs.txt",
+		}...)
+	}
+
+	return errors.Wrapf(err, "(%s/Log)", pkgName)
+}
+
+/*
+Stop closes the logger gracefully
+*/
+func Stop() error {
+	defer streamCloser()
+
+	// detectLinuxErr is a simple lambda to detect errors arising when the `sync` method
+	// is called on a logger writing to stderr/stdout in Linux
+	// Related to: https://github.com/uber-go/zap/issues/880
+	detectLinuxErr := func(err error) bool {
+		return runtime.GOOS == osLinux && strings.Contains(err.Error(), "/dev/stderr")
+	}
+
+	// Attempt to sync - if an error arises, check if OS is linux. If yes, ignore!
+	err := sync(zapLogger)
+	if err != nil && detectLinuxErr(err) {
+		err = nil
+	}
+
+	return errors.Wrapf(err, "(%s/Stop)", pkgName)
 }
