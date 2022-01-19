@@ -122,3 +122,61 @@ func Stop() error {
 
 	return errors.Wrapf(err, "(%s/Stop)", pkgName)
 }
+
+/*********************************** Boilerplate **************************************/
+
+/*
+Debug writes log messages to the `debug` level
+*/
+func Debug(args ...interface{}) {
+	zapLogger.Debug(args...)
+}
+
+/*
+Debugf uses `fmt.Sprintf` style formatting to log messages at the `debug` level
+*/
+func Debugf(message string, args ...interface{}) {
+	zapLogger.Debugf(message, args...)
+}
+
+/*
+Info writes log messages at the `info` level
+*/
+func Info(args ...interface{}) {
+	zapLogger.Info(args...)
+}
+
+/*
+Infof uses `fmt.Sprintf` style formatting to log messages at the `info` level
+*/
+func Infof(template string, args ...interface{}) {
+	zapLogger.Infof(template, args...)
+}
+
+/*
+Warn writes log messages at the `warn` level
+*/
+func Warn(args ...interface{}) {
+	zapLogger.Warn(args...)
+}
+
+/*
+Warnf uses `fmt.Sprintf` style formatting to log messages at the `warn` level
+*/
+func Warnf(msg string, args ...interface{}) {
+	zapLogger.Warnf(msg, args...)
+}
+
+/*
+Error writes log messages at the `error` level
+*/
+func Error(args ...interface{}) {
+	zapLogger.Error(args...)
+}
+
+/*
+Errorf uses `fmt.Sprintf` style formatting to log messages at the `error` level
+*/
+func Errorf(template string, args ...interface{}) {
+	zapLogger.Errorf(template, args...)
+}

@@ -112,6 +112,27 @@ func TestStop_SyncError(t *testing.T) {
 	assert.Error(t, Stop(), "logger did not propagate error")
 }
 
-func TestRunLogger(t *testing.T) {
-	assert.NotPanics(t, func() { zapLogger.Warn("Running logger") })
+func TestPublicMethods(t *testing.T) {
+	// TODO: Write this test better
+	normal := []func(...interface{}){
+		Debug,
+		Info,
+		Warn,
+		Error,
+	}
+
+	formatted := []func(string, ...interface{}){
+		Debugf,
+		Infof,
+		Warnf,
+		Errorf,
+	}
+
+	for _, function := range normal {
+		function("test")
+	}
+
+	for _, function := range formatted {
+		function("test")
+	}
 }
