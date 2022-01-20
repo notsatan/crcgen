@@ -1,5 +1,3 @@
-## Description
-
 <!--
   Add a detailed description for the changes made in this pull request
 
@@ -22,7 +20,7 @@
 <!-- Mark with an `x` all the checkboxes that apply (like `[x]`) -->
 - [ ] I've read the [`Code of Conduct`](../blob/master/CODE_OF_CONDUCT.md) and this pull request adheres to it.
 - [ ] I've read the [`CONTRIBUTING.md`](../blob/master/CONTRIBUTING.md) guide.
-- [ ] I've ran the complete test-suite using `make test-suite`, and it passed with no errors.
+- [ ] I've run the complete test-suite using `make test-suite`, and it passed with no errors.
 - [ ] I've written new tests for all changes introduced in this pull request (where applicable).
 - [ ] I've documented any new methods/structures/packages added.
 
