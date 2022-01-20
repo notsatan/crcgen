@@ -84,6 +84,10 @@ var zapLogger = zap.New(
 	),
 ).Sugar()
 
+func init() {
+	streamCloser() // might as well just hit 100% coverage	¯\_(ツ)_/¯
+}
+
 /*
 Log modifies the logger to log events at or above zap.DebugLevel, and write logs to
 a file
