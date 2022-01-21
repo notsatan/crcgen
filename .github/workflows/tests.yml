@@ -34,7 +34,6 @@ jobs:
           go-version: ${{ matrix.go-version }}
 
       - name: Install Dependencies
-        if: steps.cache.outputs.cache-hit != 'true'
         run: go mod download
 
       - name: Test
