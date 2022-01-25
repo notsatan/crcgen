@@ -1,4 +1,4 @@
-package src
+package cmd
 
 import (
 	"fmt"
@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/notsatan/crcgen/src/cmd"
 	"github.com/notsatan/crcgen/src/logger"
 )
 
@@ -26,7 +25,7 @@ func resetEnv() {
 
 func reset() {
 	initLogger = logger.Log
-	execCmd = cmd.Root.Execute
+	execCmd = Root.Execute
 	closeLogger = logger.Stop
 }
 

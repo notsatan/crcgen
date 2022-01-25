@@ -7,11 +7,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/notsatan/crcgen/src"
+	"github.com/notsatan/crcgen/src/cmd"
 )
 
 func reset() {
-	run = src.Run
+	run = cmd.Run
 
 	exit = os.Exit
 }

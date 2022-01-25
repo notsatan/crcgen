@@ -3,14 +3,14 @@ package main
 import (
 	"os"
 
-	"github.com/notsatan/crcgen/src"
+	"github.com/notsatan/crcgen/src/cmd"
 	"github.com/notsatan/crcgen/src/logger"
 )
 
 const pkgName = "main"
 
 var (
-	run  = src.Run
+	run  = cmd.Run
 	exit = os.Exit
 )
 
