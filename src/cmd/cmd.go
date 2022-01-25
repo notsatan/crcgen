@@ -19,3 +19,10 @@ crcgen batch generates file checksums for files in a directory
 `,
 	Version: version.Get(),
 }
+
+func init() {
+	// Prints out the version as `crcgen v1.0.1`
+	Root.SetVersionTemplate(
+		"{{with .Name}}{{printf \"%s \" .}}{{end}}{{printf \"%s\" .Version}}\n\n",
+	)
+}
