@@ -18,13 +18,8 @@ const (
 )
 
 var (
-	// initLogger maps calls to logger.Log
-	initLogger = logger.Log
-
-	// execCmd maps to the `Execute` method in cmd.Root
-	execCmd = cmd.Root.Execute
-
-	// closeLogger maps calls to logger.Stop
+	initLogger  = logger.Log
+	execCmd     = cmd.Root.Execute
 	closeLogger = logger.Stop
 )
 

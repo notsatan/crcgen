@@ -10,10 +10,7 @@ import (
 const pkgName = "main"
 
 var (
-	// run maps to src.Run
-	run = src.Run
-
-	// exit maps calls to os.Exit
+	run  = src.Run
 	exit = os.Exit
 )
 
