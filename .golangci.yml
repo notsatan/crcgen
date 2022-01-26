@@ -207,7 +207,6 @@ linters-settings:
     keywords: # default keywords are TODO, BUG, and FIXME
       - TODO
       - BUG
-      - NOTE
       - OPTIMIZE
       - HACK
 
@@ -511,15 +510,12 @@ linters:
     - wrapcheck
 
   # Interesting linters - enable if they fit your needs
+    - godox
   # - bodyclose
   # - godot
   # - gochecknoinits
-  # - godox
   # - nlreturn
   # - paralleltest
   # - tparallel
-
-  # Unreleased - linters that can be useful, but haven't been released in the stable
-  # version
   #  - nilnil
   #  - tenv
