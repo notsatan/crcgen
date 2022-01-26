@@ -35,7 +35,7 @@ jobs:
           version: v1.43
 
           # If set to true then the action will use pre-installed Go
-          skip-go-installation: true
+          skip-go-installation: false
 
           # Optional: golangci-lint command line arguments.
           # args: --issues-exit-code=0
