@@ -45,7 +45,7 @@ func TestRun_DebugMode(t *testing.T) {
 	resetEnv()
 	reset()
 
-	_ = os.Setenv(debugMode, envDebug)
+	t.Setenv(debugMode, envDebug)
 
 	calls := 0
 	execCmd = func() error { return nil }
@@ -71,7 +71,7 @@ func TestRun_LoggerFail(t *testing.T) {
 	reset()
 	resetEnv()
 
-	_ = os.Setenv(debugMode, envDebug)
+	t.Setenv(debugMode, envDebug)
 	initLogger = func(bool) (err error) {
 		return fmt.Errorf("(%s/TestRun_LoggerFail): test error", pkgName)
 	}
