@@ -511,6 +511,7 @@ linters:
 
   # Interesting linters - enable if they fit your needs
     - godox
+    - tenv
   # - bodyclose
   # - godot
   # - gochecknoinits
@@ -518,4 +519,3 @@ linters:
   # - paralleltest
   # - tparallel
   #  - nilnil
-  #  - tenv
