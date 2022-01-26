@@ -113,6 +113,7 @@ func TestStop_SyncError(t *testing.T) {
 }
 
 func TestPublicMethods(t *testing.T) {
+	//nolint:godox // suppress error for the `to-do` -- below low priority
 	// TODO: Write this test better
 	normal := []func(...interface{}){
 		Debug,
