@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/notsatan/crcgen/src/logger"
@@ -24,8 +25,10 @@ func resetEnv() {
 }
 
 func reset() {
+	exit = os.Exit
 	initLogger = logger.Log
 	execCmd = Root.Execute
+	cmdUsage = (*cobra.Command).Usage
 	closeLogger = logger.Stop
 }
 
@@ -118,4 +121,25 @@ func TestCloseRes(t *testing.T) {
 
 	closeLogger = func() error { return fmt.Errorf("(%s/Run): test error", pkgName) }
 	assert.NotPanics(t, func() { closeRes() })
+}
+
+func TestRootCmd(t *testing.T) {
+	reset()
+	resetEnv()
+
+	assert.NoError(t, Root.Help())
+	assert.NoError(t, Root.Usage())
+	assert.NoError(t, Root.Execute())
+
+	// Ensure os.Exit is called if command usage can't be printed
+	calls := 0
+	exit = func(int) { calls++ }
+	cmdUsage = func(*cobra.Command) error {
+		return fmt.Errorf("(%s/TestRootCmd): test", pkgName)
+	}
+
+	// Run the command - will attempt to print `usage`, which fails, and should result
+	// in a call to `exit`
+	assert.NoError(t, Root.Execute())
+	assert.Equal(t, 1, calls)
 }

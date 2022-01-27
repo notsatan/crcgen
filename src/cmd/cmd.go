@@ -20,8 +20,10 @@ const (
 )
 
 var (
+	exit        = os.Exit
 	initLogger  = logger.Log
 	execCmd     = Root.Execute
+	cmdUsage    = (*cobra.Command).Usage
 	closeLogger = logger.Stop
 )
 
@@ -34,6 +36,16 @@ crcgen batch generates file checksums for files in a directory
 
 `,
 	Version: version.Get(),
+	Run: func(cmd *cobra.Command, _ []string) {
+		cmd.SetOut(cmd.OutOrStdout())
+
+		err := cmdUsage(cmd) // dump usage message to `stdout`
+		if err != nil {
+			logger.Warnf("(%s/Root.Run): %v", pkgName, err)
+			closeRes()
+			exit(-10)
+		}
+	},
 }
 
 func init() {
@@ -41,8 +53,17 @@ func init() {
 	Root.SetVersionTemplate(
 		"{{with .Name}}{{printf \"%s \" .}}{{end}}{{printf \"%s\" .Version}}\n\n",
 	)
+
+	setupCmdTemplate(Root)
 }
 
+/*
+Run sets up the resources needed and runs the Root command, passing the flow-of-control
+to the main command-line interface
+
+Once the root command completes, Run is also responsible to safely close the resources,
+before returning the flow-of-control
+*/
 func Run() error {
 	defer closeRes()
 
