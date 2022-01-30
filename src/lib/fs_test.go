@@ -16,20 +16,14 @@ func reset() {
 }
 
 func TestIsInvalidPathErr(t *testing.T) {
-	for _, err := range []error{
-		fmt.Errorf("(%s): invalid path", pkgName),
-		errors.New("(TestIsInvalidPathErr): test error"),
-		nil,
-		fmt.Errorf("(%s/TestIsInvalidPathErr): test error", pkgName),
-		errInvalidPath,
+	for err, expected := range map[error]bool{
+		fmt.Errorf("(%s): invalid path", pkgName):        false,
+		errors.New("(TestIsInvalidPathErr): test error"): false,
+		nil: false,
+		fmt.Errorf("(%s/TestIsInvalidPathErr): test error", pkgName): false,
+		errInvalidPath: true,
 	} {
-		switch errors.Is(err, errInvalidPath) {
-		case true:
-			assert.True(t, IsInvalidPathErr(err))
-
-		case false:
-			assert.False(t, IsInvalidPathErr(err))
-		}
+		assert.Equal(t, expected, IsInvalidPathErr(err))
 	}
 }
 
@@ -41,7 +35,6 @@ func TestPathExists(t *testing.T) {
 		"invalid path",
 	} {
 		_, err := os.Stat(path)
-
 		assert.Equal(t, err == nil, PathExists(path))
 	}
 }
