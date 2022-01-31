@@ -16,7 +16,7 @@ var (
 
 func main() {
 	if err := run(); err != nil {
-		logger.Errorf("(%s/main): %s: %s", pkgName, err)
+		logger.Errorf("(%s/main): %s", pkgName, err)
 		exit(-10)
 	}
 }
