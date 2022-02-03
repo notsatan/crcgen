@@ -77,15 +77,12 @@ func start(confPath string) error {
 	dir, file := filepath.Split(confPath)
 	ext := strings.ToLower(strings.TrimLeft(filepath.Ext(file), "."))
 
-	if file == "" {
+	switch {
+	case file == "":
 		return errors.Wrap(errInvalidFile, logTag)
-	}
 
-	if ext == "" {
-		ext = "json"
-		logger.Warnf(
-			"%s: output file `%s` has no type - defaulting to JSON", logTag, file,
-		)
+	case ext == "":
+		return errors.Wrap(errInvalidExt, logTag)
 	}
 
 	if ok := validateExt(ext); !ok {

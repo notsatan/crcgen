@@ -71,7 +71,7 @@ func TestInternalStart(t *testing.T) {
 		"":             errInvalidFile, // no file specified
 		"file.txt":     errInvalidExt,  // invalid extension
 		"/tmp/":        errInvalidFile, // no file specified
-		"/dest/file":   nil,            // extension should default to `JSON`
+		"/dest/file":   errInvalidExt,  // no extension specified
 		"config.YAML":  nil,            // default to working directory
 		"/file.yAML":   nil,            // case-insensitivity ensured
 		"/config.YmL":  nil,
