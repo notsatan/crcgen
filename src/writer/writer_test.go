@@ -83,7 +83,9 @@ func TestInternalStart(t *testing.T) {
 			assert.NoErrorf(t, result, `unexpected error for input: "%s"`, input)
 		} else {
 			assert.Errorf(t, result, `no error for invalid input: "%s"`, input)
-			assert.True(t, errors.Is(result, err))
+			assert.Truef(
+				t, errors.Is(result, err), `failed at: ("%s", %v)`, input, result,
+			)
 		}
 	}
 }

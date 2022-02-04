@@ -24,7 +24,7 @@ var once sync.Once
 // output is the central instance of `viper` being used by package `writer`
 var output = viper.New()
 
-var readViperConfigs = (*viper.Viper).ReadInConfig
+var readViperConfigs = (*viper.Viper).ReadInConfig // maps to viper.ReadInConfig
 
 var (
 	errInvalidFile = fmt.Errorf("(%s): could not detect output file in path", pkgName)
@@ -70,34 +70,28 @@ func Start(confPath string) error {
 /*
 start initializes package `writer`, setting up the configurations needed
 */
-func start(confPath string) error {
+func start(confFile string) error {
 	const logTag = "(" + pkgName + "/Start)"
 
 	// Split path to get directory, filename and extension (remove `dot` from ext)
-	dir, file := filepath.Split(confPath)
-	ext := strings.ToLower(strings.TrimLeft(filepath.Ext(file), "."))
+	_, file := filepath.Split(confFile)
+	ext := strings.ToLower(strings.TrimLeft(filepath.Ext(confFile), "."))
 
 	switch {
 	case file == "":
+		logger.Errorf(`%s: config path is empty`, logTag)
 		return errors.Wrap(errInvalidFile, logTag)
 
 	case ext == "":
+		logger.Errorf(`%s: config path has no extension: "%s"`, logTag, confFile)
+		return errors.Wrap(errInvalidExt, logTag)
+
+	case !validateExt(ext):
+		logger.Errorf(`%s: config file invalid ext detected: "%s"`, logTag, confFile)
 		return errors.Wrap(errInvalidExt, logTag)
 	}
 
-	if ok := validateExt(ext); !ok {
-		logger.Errorf(`Directory, File, Extension: ("%v", "%v", "%v")`, dir, file, ext)
-		return errors.Wrap(errInvalidExt, logTag)
-	}
-
-	if dir == "" {
-		dir = "."
-		logger.Infof("%s: destination directory defaulted to work directory", logTag)
-	}
-
-	output.SetConfigType(ext)
-	output.AddConfigPath(dir)
-	output.SetConfigName(file)
+	output.SetConfigFile(confFile)
 
 	err := readViperConfigs(output)
 	return errors.Wrap(err, logTag)
