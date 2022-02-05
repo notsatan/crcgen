@@ -24,11 +24,15 @@ var once sync.Once
 // output is the central instance of `viper` being used by package `writer`
 var output = viper.New()
 
-var readViperConfigs = (*viper.Viper).ReadInConfig // maps to viper.ReadInConfig
+var (
+	readViperConfigs = (*viper.Viper).ReadInConfig // maps to viper.ReadInConfig
+	absPath          = filepath.Abs                // maps to filepath.Abs
+)
 
 var (
 	errInvalidFile = fmt.Errorf("(%s): could not detect output file in path", pkgName)
 	errInvalidExt  = fmt.Errorf("(%s): output file has invalid extension", pkgName)
+	errAbsPath     = fmt.Errorf("(%s): couldn't convert path to absolute", pkgName)
 )
 
 /*
@@ -47,16 +51,20 @@ func IsInvalidExtErr(err error) bool {
 	return errors.Is(err, errInvalidExt)
 }
 
+func IsAbsPathErr(err error) bool {
+	return errors.Is(err, errAbsPath)
+}
+
 /*
 Start initializes package `writer` - should be executed before calls to any function
 from this package
 
-Returns an error if the output file could not be parsed from the path, if the output
-file contains an invalid extension, or if function Start is being called multiple times
-Use the functions IsInvalidFileErr, and IsInvalidExtErr to explicitly check for these
-errors
+Returns error if the output file could not be parsed from the path, if the output file
+contains an invalid extension, or if the path could not be converted to absolute path.
+Use the functions IsInvalidFileErr, IsInvalidExtErr and IsAbsPathErr to explicitly
+check for these errors
 
-Note: This function can be run once
+Note: This function can be run once (at most)
 */
 func Start(confPath string) error {
 	var err error
@@ -73,39 +81,46 @@ start initializes package `writer`, setting up the configurations needed
 func start(confFile string) error {
 	const logTag = "(" + pkgName + "/Start)"
 
-	// Split path to get directory, filename and extension (remove `dot` from ext)
-	_, file := filepath.Split(confFile)
-	ext := strings.ToLower(strings.TrimLeft(filepath.Ext(confFile), "."))
-
-	switch {
-	case file == "":
-		logger.Errorf(`%s: config path is empty`, logTag)
-		return errors.Wrap(errInvalidFile, logTag)
-
-	case ext == "":
-		logger.Errorf(`%s: config path has no extension: "%s"`, logTag, confFile)
-		return errors.Wrap(errInvalidExt, logTag)
-
-	case !validateExt(ext):
-		logger.Errorf(`%s: config file invalid ext detected: "%s"`, logTag, confFile)
-		return errors.Wrap(errInvalidExt, logTag)
+	path, err := fixPath(confFile)
+	if err != nil {
+		return errors.Wrap(err, logTag)
 	}
 
-	output.SetConfigFile(confFile)
+	output.SetConfigFile(path)
 
-	err := readViperConfigs(output)
+	err = readViperConfigs(output)
 	return errors.Wrap(err, logTag)
 }
 
 /*
-validateExt validates if an extension is valid for the output file
+fixPath validates, and fixes the path to the output file. This includes validating the
+path, ensuring the file extension is valid, converting relative paths into absolute
+paths, and more
 */
-func validateExt(ext string) bool {
-	switch strings.ToLower(ext) {
+func fixPath(path string) (string, error) {
+	const logTag = "(" + pkgName + "/fixPath)"
+
+	if _, file := filepath.Split(path); file == "" {
+		logger.Errorf(`%s: config path is empty`, logTag)
+		return "", errors.Wrap(errInvalidFile, logTag)
+	}
+
+	// Extract and validate extension from path - remove `dot`, and convert to lowercase
+	ext := strings.ToLower(strings.TrimLeft(filepath.Ext(path), "."))
+	switch ext {
 	case "json", "yaml", "yml":
-		return true
+		// supported extensions, ignore
 
 	default:
-		return false
+		logger.Errorf(`%s: config file invalid ext detected: "%s"`, logTag, path)
+		return "", errors.Wrap(errInvalidExt, logTag)
 	}
+
+	p, err := absPath(path)
+	if err != nil {
+		logger.Errorf(`%s: could not resolve path to absolute: "%v"`, logTag, path)
+		return "", errors.Wrap(errAbsPath, logTag)
+	}
+
+	return p, nil
 }

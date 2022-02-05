@@ -2,6 +2,7 @@ package writer
 
 import (
 	"fmt"
+	"path/filepath"
 	"sync"
 	"testing"
 
@@ -10,9 +11,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-//nolint:deadcode,unused // keeping this for future use
 func reset() {
 	readViperConfigs = (*viper.Viper).ReadInConfig
+	absPath = filepath.Abs
 }
 
 func TestIsInvalidExtErr(t *testing.T) {
@@ -47,17 +48,31 @@ func TestIsInvalidFileErr(t *testing.T) {
 	}
 }
 
+func TestIsAbsPathErr(t *testing.T) {
+	for err, expected := range map[error]bool{
+		nil:                             false,
+		errInvalidExt:                   false,
+		errInvalidFile:                  false,
+		errors.Wrap(errAbsPath, "test"): true,
+		fmt.Errorf("test error"):        false,
+		fmt.Errorf(""):                  false,
+		fmt.Errorf("(%s): output file has invalid extension", pkgName): false,
+	} {
+		assert.Equalf(
+			t, expected, IsAbsPathErr(err),
+			`failed to match "%v" -> "%v"`, expected, err,
+		)
+	}
+}
+
 func TestStart(t *testing.T) {
 	// Checks to ensure `Start` can be run exactly once
-	readViperConfigs = func(*viper.Viper) error { return nil }
 
-	once = sync.Once{} // reset to isolate this test
+	once = sync.Once{}       // reset to isolate this test
+	invalidInput := "/root/" // should fail - no file is specified
 
-	invalidInput := "/root/" // expect an error since no file is specified
-	assert.Errorf(
-		t, Start(invalidInput),
-		`expected failure for invalid input: "%s"`, invalidInput,
-	)
+	err := Start(invalidInput) // should fail at `writer.fixPath` in `writer.start`
+	assert.Errorf(t, err, `expected failure for invalid input: "%s"`, invalidInput)
 
 	// On the second run, the function `Start` should return directly, and no error
 	// should be possible even for invalid input
@@ -65,40 +80,58 @@ func TestStart(t *testing.T) {
 }
 
 func TestInternalStart(t *testing.T) {
+	// Dry run the internal start function
+
+	reset()
 	readViperConfigs = func(*viper.Viper) error { return nil }
+	validInput := "output.json"
 
-	for input, err := range map[string]error{
-		"":             errInvalidFile, // no file specified
-		"file.txt":     errInvalidExt,  // invalid extension
-		"/tmp/":        errInvalidFile, // no file specified
-		"/dest/file":   errInvalidExt,  // no extension specified
-		"config.YAML":  nil,            // default to working directory
-		"/file.yAML":   nil,            // case-insensitivity ensured
-		"/config.YmL":  nil,
-		"/config.JSon": nil,
+	err := start(validInput)
+	assert.NoErrorf(t, err, "unexpected error: %v", err)
+}
+
+func TestFixPath(t *testing.T) {
+	reset()
+	for input, val := range map[string]struct {
+		err  error
+		path string // contains relative path, needs to be converted
+	}{
+		"":             {err: errInvalidFile},   // no file specified
+		"file.txt":     {err: errInvalidExt},    // invalid extension
+		"file.out":     {err: errInvalidExt},    // invalid extension
+		"/tmp/":        {err: errInvalidFile},   // no file specified
+		"/dest/file":   {err: errInvalidExt},    // no extension specified
+		"config.YAML":  {path: "./config.YAML"}, // default to working directory
+		"file.mp4":     {err: errInvalidExt},    // invalid extension
+		"/file.yAML":   {path: "/file.yAML"},    // case-insensitivity ensured
+		"/config.YmL":  {path: "/config.YmL"},
+		"/config.JSon": {path: "/config.JSon"},
 	} {
-		result := start(input)
+		result, err := fixPath(input)
 
-		if err == nil {
-			assert.NoErrorf(t, result, `unexpected error for input: "%s"`, input)
+		if val.err == nil {
+			assert.NoErrorf(t, err, `unexpected error for input: "%s"`, input)
+
+			path, e := filepath.Abs(val.path)
+			assert.NoErrorf(t, e, `unexpected error for test input: "%s"`, input)
+			assert.Equalf(t, path, result, `failed for input: "%v"`, input)
 		} else {
-			assert.Errorf(t, result, `no error for invalid input: "%s"`, input)
+			assert.Emptyf(t, result, `expected empty path for input: "%v"`, input)
+			assert.Errorf(t, err, `no error for invalid input: "%s"`, input)
 			assert.Truef(
-				t, errors.Is(result, err), `failed at: ("%s", %v)`, input, result,
+				t, errors.Is(err, val.err), `(input, error): ("%s", "%v")`, input, err,
 			)
 		}
 	}
 }
 
-func TestValidateExt(t *testing.T) {
-	for input, expected := range map[string]bool{
-		"jSon":             true, // case-insensitive expected
-		"YaMl":             true,
-		"yML":              true,
-		"invalid input":    false,
-		"unexpected-input": false,
-	} {
-		result := validateExt(input)
-		assert.Equalf(t, expected, result, `check passed for invalid input "%s"`, input)
-	}
+func TestFixPath_AbsPathFail(t *testing.T) {
+	reset()
+
+	absPath = func(string) (string, error) { return "", errAbsPath }
+	path, err := fixPath("/test/path.json")
+
+	assert.Error(t, err, "expected an error when absolute path can't be formed")
+	assert.Emptyf(t, path, `expected path to be empty for an error: "%v"`, path)
+	assert.Truef(t, IsAbsPathErr(err), `expected custom error type: "%v"`, err)
 }
