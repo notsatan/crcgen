@@ -2,6 +2,7 @@ package writer
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -12,7 +13,13 @@ import (
 )
 
 func reset() {
+	output = viper.New()
 	readViperConfigs = (*viper.Viper).ReadInConfig
+	fileIsDir = os.FileInfo.IsDir
+	closeFile = (*os.File).Close
+
+	pathStats = os.Stat
+	createFile = os.Create
 	absPath = filepath.Abs
 }
 
@@ -43,6 +50,38 @@ func TestIsInvalidFileErr(t *testing.T) {
 	} {
 		assert.Equalf(
 			t, expected, IsInvalidFileErr(err),
+			`failed to match "%v" -> "%v"`, expected, err,
+		)
+	}
+}
+
+func TestIsPathNotWriteableErr(t *testing.T) {
+	for err, expected := range map[error]bool{
+		nil:                      false,
+		errNotWritable:           true,
+		errInvalidFile:           false,
+		fmt.Errorf("test error"): false,
+		fmt.Errorf(""):           false,
+		fmt.Errorf("(%s): output file has invalid extension", pkgName): false,
+	} {
+		assert.Equalf(
+			t, expected, IsPathNotWriteableErr(err),
+			`failed to match "%v" -> "%v"`, expected, err,
+		)
+	}
+}
+
+func TestIsPathDirErr(t *testing.T) {
+	for err, expected := range map[error]bool{
+		nil:                      false,
+		errNotWritable:           false,
+		errPathIsDir:             true,
+		fmt.Errorf("test error"): false,
+		fmt.Errorf(""):           false,
+		fmt.Errorf("(%s): output file has invalid extension", pkgName): false,
+	} {
+		assert.Equalf(
+			t, expected, IsPathDirErr(err),
 			`failed to match "%v" -> "%v"`, expected, err,
 		)
 	}
@@ -83,8 +122,19 @@ func TestInternalStart(t *testing.T) {
 	// Dry run the internal start function
 
 	reset()
+
+	pathStats = func(string) (os.FileInfo, error) { return nil, os.ErrNotExist }
 	readViperConfigs = func(*viper.Viper) error { return nil }
+	fileIsDir = func(os.FileInfo) bool { return false }
+	createFile = func(string) (*os.File, error) { return nil, nil }
+
 	validInput := "output.json"
+
+	// expect a failure if file fails to close
+	closeFile = func(*os.File) error { return fmt.Errorf("(%s): test error", pkgName) }
+	assert.Errorf(t, start(validInput), `no error returned when file failed to close`)
+
+	closeFile = func(*os.File) error { return nil } // path to undo this
 
 	err := start(validInput)
 	assert.NoErrorf(t, err, "unexpected error: %v", err)
@@ -134,4 +184,60 @@ func TestFixPath_AbsPathFail(t *testing.T) {
 	assert.Error(t, err, "expected an error when absolute path can't be formed")
 	assert.Emptyf(t, path, `expected path to be empty for an error: "%v"`, path)
 	assert.Truef(t, IsAbsPathErr(err), `expected custom error type: "%v"`, err)
+}
+
+func TestCreateOutFile_PathStats(t *testing.T) {
+	reset()
+
+	// Mock functions to isolate scenarios
+	createFile = func(string) (*os.File, error) { return nil, nil }
+	closeFile = func(*os.File) error { return nil }
+
+	// Wrapper to run uniform tests
+	runner := func() error { return createOutFile("") }
+
+	// If file does not exit, the function should pass normally
+	pathStats = func(string) (os.FileInfo, error) { return nil, os.ErrNotExist }
+	assert.NoError(t, runner(), `unexpected error for mock #1`)
+
+	// Expect an error if file stats can't be read
+	pathStats = func(string) (os.FileInfo, error) { return nil, fmt.Errorf("") }
+	assert.Error(t, runner(), `no error occurred for mock #3`)
+
+	// If a directory exists at the same path, expect an error
+	fileIsDir = func(os.FileInfo) bool { return true }
+	pathStats = func(string) (os.FileInfo, error) { return nil, nil }
+
+	result := runner()
+	assert.Error(t, result, `no error occurred for mock #2`)
+	assert.Truef(t, IsPathDirErr(result), `failed to match error type: "%v"`, result)
+
+	fileIsDir = os.FileInfo.IsDir // reset
+
+	// Mock scenario when output file already exists - expect a direct return
+	fileIsDir = func(os.FileInfo) bool { return false }
+	assert.NoError(t, runner(), `unexpected error for mock #4`)
+}
+
+func TestCreateOutFile_CreateFile(t *testing.T) {
+	reset()
+
+	// Mocks to isolate the portion being tested
+	pathStats = func(string) (os.FileInfo, error) { return nil, os.ErrNotExist }
+	fileIsDir = func(os.FileInfo) bool { return false }
+
+	runner := func() error { return createOutFile("") }
+
+	// Expect an error indicating un-writable path if the file can't be created
+	createFile = func(string) (*os.File, error) { return nil, fmt.Errorf("test") }
+	result := runner()
+	assert.Error(t, result, `no error occurred for mock #1`)
+	assert.Truef(
+		t, IsPathNotWriteableErr(result), `failed to match error type: "%v"`, result,
+	)
+
+	// Mock normal conditions - no error should occur
+	closeFile = func(*os.File) error { return nil }
+	createFile = func(string) (*os.File, error) { return nil, nil }
+	assert.NoError(t, runner())
 }
