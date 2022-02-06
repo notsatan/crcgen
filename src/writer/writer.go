@@ -36,11 +36,11 @@ var (
 )
 
 var (
+	errPathIsDir   = fmt.Errorf("(%s): path points to an existing directory", pkgName)
 	errInvalidFile = fmt.Errorf("(%s): could not detect output file in path", pkgName)
 	errInvalidExt  = fmt.Errorf("(%s): output file has invalid extension", pkgName)
 	errAbsPath     = fmt.Errorf("(%s): couldn't convert path to absolute", pkgName)
 	errNotWritable = fmt.Errorf("(%s): path is not writeable", pkgName)
-	errPathIsDir   = fmt.Errorf("(%s): path points to an existing directory", pkgName)
 )
 
 /*
@@ -134,7 +134,7 @@ func fixPath(path string) (string, error) {
 	const logTag = "(" + pkgName + "/fixPath)"
 
 	if _, file := filepath.Split(path); file == "" {
-		logger.Errorf(`%s: config path is empty`, logTag)
+		logger.Errorf(`%s: output path is empty`, logTag)
 		return "", errors.Wrap(errInvalidFile, logTag)
 	}
 
@@ -145,7 +145,7 @@ func fixPath(path string) (string, error) {
 		// supported extensions, ignore
 
 	default:
-		logger.Errorf(`%s: config file invalid ext detected: "%s"`, logTag, path)
+		logger.Errorf(`%s: output file invalid ext detected: "%s"`, logTag, path)
 		return "", errors.Wrap(errInvalidExt, logTag)
 	}
 
