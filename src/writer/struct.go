@@ -25,3 +25,22 @@ type FileInfo struct {
 	// not intended to be human-readable
 	LastMod int64
 }
+
+/*
+DirInfo defines contents of a directory. Each directory can contain multiple
+directories, and files
+*/
+type DirInfo struct {
+	// Path contains the full path to the directory
+	Path string
+
+	// Dirs maps all the directories present in this directory as DirInfo objects
+	Dirs []DirInfo
+
+	// Files maps all the files present in the directory as FileInfo objects
+	Files []FileInfo
+
+	// LastMod indicates the time when the directory was last modified. Represents epoch
+	// time, not intended to be human-readable
+	LastMod int64
+}
