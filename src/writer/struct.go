@@ -44,3 +44,41 @@ type DirInfo struct {
 	// time, not intended to be human-readable
 	LastMod int64
 }
+
+/*
+CalcModTime calculates the LastMod time for a directory, in case this has already been
+calculated, the previous value is directly returned
+
+For directories without a set value of LastMod time, this method will iterate over each
+file and directory, fetching the last mod time for each, and setting the greatest value
+as the last modification time for this directory
+
+Note: For worst-case scenario, this method ends up being recursive -- a call is made
+to CalcModTime for each directory in Dirs
+*/
+func (dir *DirInfo) CalcModTime() int64 {
+	if dir.LastMod > 0 {
+		return dir.LastMod
+	}
+
+	// To calculate the last mod time, iterate over each file and directory within the
+	// current directory. Since last mod is the epoch time when the item was last
+	// modified, the greatest value of last mod time will be the modification time
+	// for this directory
+	var modTime int64
+
+	for i := range dir.Files {
+		if dir.Files[i].LastMod > modTime {
+			modTime = dir.Files[i].LastMod
+		}
+	}
+
+	for i := range dir.Dirs {
+		if time := dir.Dirs[i].CalcModTime(); time > modTime {
+			modTime = time
+		}
+	}
+
+	dir.LastMod = modTime // save this value for future use
+	return modTime
+}
