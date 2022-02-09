@@ -1,5 +1,7 @@
 package writer
 
+import "path/filepath"
+
 /*
 Checksums contains the various checksums generated for files
 */
@@ -43,6 +45,13 @@ type DirInfo struct {
 	// LastMod indicates the time when the directory was last modified. Represents epoch
 	// time, not intended to be human-readable
 	LastMod int64
+}
+
+/*
+Name returns the name of the directory
+*/
+func (dir *DirInfo) Name() string {
+	return filepath.Base(dir.Path)
 }
 
 /*

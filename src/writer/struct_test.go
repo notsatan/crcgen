@@ -6,6 +6,20 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestDirInfo_Name(t *testing.T) {
+	for input, expected := range map[string]string{
+		"/tmp/path/dest/": "dest",
+		"/destination":    "destination",
+		"/test/output/":   "output",
+		"/tmp/input.jpg/": "input.jpg",
+	} {
+		obj := DirInfo{Path: input}
+
+		name := obj.Name()
+		assert.Equalf(t, expected, name, `(input, output): ("%s", "%s")`, input, name)
+	}
+}
+
 func TestDirInfo_CalcModTime_DirectReturn(t *testing.T) {
 	// Ensure the function performs a direct return if last mod time is specified, and
 	// the result should be an int64
