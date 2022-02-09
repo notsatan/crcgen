@@ -31,6 +31,8 @@ type FileInfo struct {
 /*
 DirInfo defines contents of a directory. Each directory can contain multiple
 directories, and files
+
+Note: It is recommended to use the NewDir function to create DirInfo objects
 */
 type DirInfo struct {
 	// Path contains the full path to the directory
@@ -90,4 +92,33 @@ func (dir *DirInfo) CalcModTime() int64 {
 
 	dir.LastMod = modTime // save this value for future use
 	return modTime
+}
+
+/*
+NewDir is a wrapper to create DirInfo objects. Objects created using this method would
+ensure they have DirInfo.LastMod value set and more
+
+It is recommended to use this function to create DirInfo objects
+
+Note: If `dirName` is not empty, it will be merged into `parentPath` to form the final
+path to the directory. If not, `parentPath` will be assumed to be the complete path
+*/
+func NewDir(
+	dirName, parentPath string, dirs []DirInfo, files []FileInfo, lastMod int64,
+) DirInfo {
+	// Form a custom path if needed
+	path := parentPath
+	if dirName != "" {
+		path = filepath.Join(parentPath, dirName)
+	}
+
+	result := DirInfo{
+		Path:    path,
+		Dirs:    dirs,
+		Files:   files,
+		LastMod: lastMod,
+	}
+
+	_ = result.CalcModTime() // ensures the directory created has mod time set
+	return result
 }

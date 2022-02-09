@@ -90,3 +90,24 @@ func TestDirInfo_CalcModTime(t *testing.T) {
 	time := obj.CalcModTime()
 	assert.Equalf(t, int64(29), time, "result returned: %v", time)
 }
+
+func TestNewDir(t *testing.T) {
+	// Ensure path is combined when both `dirName` and `parentPath` are supplied, and
+	// vice-versa. The rest of the method is linear logic!
+
+	for expected, input := range map[string]struct {
+		dirName    string
+		parentPath string
+	}{
+		// 		in/put 		: 			output
+		"/path/to/directory": {parentPath: "/path/to", dirName: "directory"},
+		"/obj/directory":     {parentPath: "/obj", dirName: "directory"},
+		"/dirName":           {parentPath: "/dirName"},
+	} {
+		obj := NewDir(input.dirName, input.parentPath, nil, nil, 0)
+
+		assert.Equalf(
+			t, expected, obj.Path, `(input, output): ("%s", "%s")`, input, obj.Path,
+		)
+	}
+}
