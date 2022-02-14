@@ -1,5 +1,30 @@
 package writer
 
+import (
+	"strings"
+
+	"github.com/notsatan/crcgen/src/logger"
+)
+
+// outHandlers maps the available Handlers to the extension they handle. Extensions
+// do not contain period(s), and stored as the key in lower-case
+var outHandlers map[string]Handler
+
+/*
+AddHandler registers a Handler that will be used to handle a particular output file,
+these handlers are detected based on file extensions
+*/
+func AddHandler(handler Handler) {
+	for _, ext := range handler.FileTypes() {
+		ext = strings.ToLower(strings.Trim(ext, " ."))
+		if _, ok := outHandlers[ext]; ok {
+			logger.Debugf("(%s/AddHandler): duplicate extension `%s`", pkgName, ext)
+		}
+
+		outHandlers[ext] = handler
+	}
+}
+
 /*
 Handler defines a simple interface to interact with data from the output file - this
 includes reading data from the file, and writing to the same file when done
