@@ -11,8 +11,13 @@ import (
 
 type jsonHandler struct{}
 
-func (*jsonHandler) Marshal(info *writer.DirInfo) ([]byte, error) {
-	return json.Marshal(info)
+func (*jsonHandler) Marshal(info *writer.DirInfo, indent ...bool) ([]byte, error) {
+	if len(indent) == 0 || !indent[0] {
+		return json.Marshal(info) // without indents
+	}
+
+	// Indent with tabs when indentation is required
+	return json.MarshalIndent(info, "", "\t")
 }
 
 func (*jsonHandler) Unmarshal(data []byte, info *writer.DirInfo) error {

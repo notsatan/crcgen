@@ -25,30 +25,33 @@ func TestJsonHandler_Marshal(t *testing.T) {
 	}
 
 	// Supposed to be the JSON equivalent of the `input` object
-	o := `
-{
-  "Path": "/test/path",
-  "Dirs": null,
-  "Files": [
-    {
-      "Name": "test-file",
-      "Checksums": {
-        "CRC32": ""
-      },
-      "Size": 300,
-      "LastMod": 0
-    }
-  ],
-  "LastMod": 0
-}
-`
+	rawJSON := `{
+	"Path": "/test/path",
+	"Dirs": null,
+	"Files": [
+		{
+			"Name": "test-file",
+			"Checksums": {
+				"CRC32": ""
+			},
+			"Size": 300,
+			"LastMod": 0
+		}
+	],
+	"LastMod": 0
+}`
 
 	var output bytes.Buffer // strip extra spaces
-	require.NoError(t, json.Compact(&output, []byte(o)))
+	require.NoError(t, json.Compact(&output, []byte(rawJSON)))
 
+	// Without indentation
 	res, err := handler().Marshal(input)
 	require.NoError(t, err)
 	assert.Equal(t, output.Bytes(), res)
+
+	res, err = handler().Marshal(input, true)
+	require.NoError(t, err)
+	assert.Equal(t, []byte(rawJSON), res)
 }
 
 func TestJsonHandler_Unmarshal(t *testing.T) {
