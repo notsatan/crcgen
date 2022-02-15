@@ -20,13 +20,9 @@ func (*mockHandler) Unmarshal([]byte, *DirInfo) error { return nil }
 var _ = Handler(&mockHandler{}) // verify mockHandler implements Handler
 
 func TestValidateExt(t *testing.T) {
-	reset := func() {
-		outHandlers = map[string]Handler{}
-	}
-
 	reset()
-	defer reset()
 
+	// register a bunch of mock handlers
 	outHandlers = map[string]Handler{
 		"mp4": &mockHandler{},
 		"mkv": &mockHandler{},
@@ -50,12 +46,7 @@ func TestValidateExt(t *testing.T) {
 }
 
 func TestAddHandler(t *testing.T) {
-	reset := func() {
-		outHandlers = map[string]Handler{} // isolate test case
-	}
-
 	reset()
-	defer reset()
 
 	testFileTypes = []string{"Mp4", "JsOn", " .mkv ", " ziP", "7Z", ".tXt", ".mp4"}
 	AddHandler(&mockHandler{})

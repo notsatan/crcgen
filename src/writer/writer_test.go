@@ -21,6 +21,8 @@ func reset() {
 	pathStats = os.Stat
 	createFile = os.Create
 	absPath = filepath.Abs
+
+	outHandlers = map[string]Handler{}
 }
 
 func TestIsInvalidExtErr(t *testing.T) {
