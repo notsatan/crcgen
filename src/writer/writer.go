@@ -140,11 +140,7 @@ func fixPath(path string) (string, error) {
 
 	// Extract and validate extension from path - remove `dot`, and convert to lowercase
 	ext := strings.ToLower(strings.TrimLeft(filepath.Ext(path), "."))
-	switch ext {
-	case "json", "yaml", "yml":
-		// supported extensions, ignore
-
-	default:
+	if !validateExt(ext) {
 		logger.Errorf(`%s: output file invalid ext detected: "%s"`, logTag, path)
 		return "", errors.Wrap(errInvalidExt, logTag)
 	}

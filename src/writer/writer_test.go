@@ -130,6 +130,7 @@ func TestInternalStart(t *testing.T) {
 	fileIsDir = func(os.FileInfo) bool { return false }
 	createFile = func(string) (*os.File, error) { return nil, nil }
 
+	outHandlers = map[string]Handler{"json": &mockHandler{}} // mock add `json` handler
 	validInput := "output.json"
 
 	// expect a failure if file fails to close
@@ -144,6 +145,13 @@ func TestInternalStart(t *testing.T) {
 
 func TestFixPath(t *testing.T) {
 	reset()
+
+	outHandlers = map[string]Handler{
+		"json": &mockHandler{},
+		"yaml": &mockHandler{},
+		"yml":  &mockHandler{},
+	}
+
 	for input, val := range map[string]struct {
 		err  error
 		path string // contains relative path, needs to be converted
@@ -181,6 +189,8 @@ func TestFixPath_AbsPathFail(t *testing.T) {
 	reset()
 
 	absPath = func(string) (string, error) { return "", errAbsPath }
+	outHandlers = map[string]Handler{"json": &mockHandler{}}
+
 	path, err := fixPath("/test/path.json")
 
 	assert.Error(t, err, "expected an error when absolute path can't be formed")
