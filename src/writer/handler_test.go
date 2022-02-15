@@ -19,6 +19,36 @@ func (*mockHandler) Unmarshal([]byte, *DirInfo) error { return nil }
 
 var _ = Handler(&mockHandler{}) // verify mockHandler implements Handler
 
+func TestValidateExt(t *testing.T) {
+	reset := func() {
+		outHandlers = map[string]Handler{}
+	}
+
+	reset()
+	defer reset()
+
+	outHandlers = map[string]Handler{
+		"mp4": &mockHandler{},
+		"mkv": &mockHandler{},
+		"zip": &mockHandler{},
+		"mp3": &mockHandler{},
+		"7z":  &mockHandler{},
+	}
+
+	for input, expected := range map[string]bool{
+		"mp4":   true,
+		"MKV":   true,
+		"mP3":   true,
+		"png":   false,
+		".zip":  true,
+		"  .7z": true,
+		"jpeg":  false,
+	} {
+		res := validateExt(input)
+		assert.Equalf(t, expected, res, `failed validate extension: "%s"`, input)
+	}
+}
+
 func TestAddHandler(t *testing.T) {
 	reset := func() {
 		outHandlers = map[string]Handler{} // isolate test case

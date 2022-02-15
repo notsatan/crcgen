@@ -6,9 +6,23 @@ import (
 	"github.com/notsatan/crcgen/src/logger"
 )
 
+// extTrimSet determines the cutset to trim extensions before adding to outHandlers
+const extTrimSet = " ."
+
 // outHandlers maps the available Handlers to the extension they handle. Extensions
 // do not contain period(s), and stored as the key in lower-case
 var outHandlers map[string]Handler
+
+/*
+validateExt validates if a Handler exists for a given extension - i.e. simply if an
+extension is valid for an output file
+*/
+func validateExt(ext string) bool {
+	ext = strings.ToLower(strings.Trim(ext, extTrimSet))
+	_, ok := outHandlers[ext]
+
+	return ok
+}
 
 /*
 AddHandler registers a Handler that will be used to handle a particular output file,
@@ -16,7 +30,7 @@ these handlers are detected based on file extensions
 */
 func AddHandler(handler Handler) {
 	for _, ext := range handler.FileTypes() {
-		ext = strings.ToLower(strings.Trim(ext, " ."))
+		ext = strings.ToLower(strings.Trim(ext, extTrimSet))
 		if _, ok := outHandlers[ext]; ok {
 			logger.Debugf("(%s/AddHandler): duplicate extension `%s`", pkgName, ext)
 		}
