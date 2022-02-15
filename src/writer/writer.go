@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 
 	"github.com/pkg/errors"
@@ -138,9 +137,8 @@ func fixPath(path string) (string, error) {
 		return "", errors.Wrap(errInvalidFile, logTag)
 	}
 
-	// Extract and validate extension from path - remove `dot`, and convert to lowercase
-	ext := strings.ToLower(strings.TrimLeft(filepath.Ext(path), "."))
-	if !validateExt(ext) {
+	// Extract file extension, and validate the same
+	if ext := filepath.Ext(path); !validateExt(ext) {
 		logger.Errorf(`%s: output file invalid ext detected: "%s"`, logTag, path)
 		return "", errors.Wrap(errInvalidExt, logTag)
 	}
