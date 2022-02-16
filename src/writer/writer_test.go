@@ -8,19 +8,18 @@ import (
 	"testing"
 
 	"github.com/pkg/errors"
-	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 )
 
 func reset() {
-	output = viper.New()
-	readViperConfigs = (*viper.Viper).ReadInConfig
-	fileIsDir = os.FileInfo.IsDir
 	closeFile = (*os.File).Close
+	fileIsDir = os.FileInfo.IsDir
+	filePath = ""
 
 	pathStats = os.Stat
 	createFile = os.Create
 	absPath = filepath.Abs
+	osReadFile = os.ReadFile
 
 	outHandlers = map[string]Handler{}
 }
@@ -106,6 +105,23 @@ func TestIsAbsPathErr(t *testing.T) {
 	}
 }
 
+func TestIsReadFileErr(t *testing.T) {
+	for err, expected := range map[error]bool{
+		nil:                              false,
+		errReadFile:                      true,
+		errInvalidFile:                   false,
+		errors.Wrap(errReadFile, "test"): true,
+		fmt.Errorf("test error"):         false,
+		fmt.Errorf(""):                   false,
+		fmt.Errorf("(%s): output file has invalid extension", pkgName): false,
+	} {
+		assert.Equalf(
+			t, expected, IsReadFileErr(err),
+			`failed to match "%v" -> "%v"`, expected, err,
+		)
+	}
+}
+
 func TestStart(t *testing.T) {
 	// Checks to ensure `Start` can be run exactly once
 
@@ -126,9 +142,9 @@ func TestInternalStart(t *testing.T) {
 	reset()
 
 	pathStats = func(string) (os.FileInfo, error) { return nil, os.ErrNotExist }
-	readViperConfigs = func(*viper.Viper) error { return nil }
 	fileIsDir = func(os.FileInfo) bool { return false }
 	createFile = func(string) (*os.File, error) { return nil, nil }
+	osReadFile = func(string) ([]byte, error) { return []byte{}, nil }
 
 	outHandlers = map[string]Handler{"json": &mockHandler{}} // mock add `json` handler
 	validInput := "output.json"
@@ -138,9 +154,15 @@ func TestInternalStart(t *testing.T) {
 	assert.Errorf(t, start(validInput), `no error returned when file failed to close`)
 
 	closeFile = func(*os.File) error { return nil } // path to undo this
-
 	err := start(validInput)
 	assert.NoErrorf(t, err, "unexpected error: %v", err)
+
+	// expect a failure if the output file cannot be read
+	err = fmt.Errorf("(%s): test error", pkgName)
+	osReadFile = func(string) ([]byte, error) { return nil, err }
+
+	err = start(validInput)
+	assert.Errorf(t, err, "unexpected non-failure: %v", err)
 }
 
 func TestFixPath(t *testing.T) {
@@ -252,4 +274,22 @@ func TestCreateOutFile_CreateFile(t *testing.T) {
 	closeFile = func(*os.File) error { return nil }
 	createFile = func(string) (*os.File, error) { return nil, nil }
 	assert.NoError(t, runner())
+}
+
+func TestReadFile(t *testing.T) {
+	// Ensure `readFile` fails in case of an error, and vice-versa
+
+	reset()
+
+	osReadFile = func(string) ([]byte, error) { return nil, errReadFile }
+	assert.Error(t, readFile(&DirInfo{}))
+
+	// Ensure direct return in case the file is empty
+	osReadFile = func(string) ([]byte, error) { return []byte{}, nil }
+	assert.NoError(t, readFile(&DirInfo{}))
+
+	osReadFile = func(string) ([]byte, error) { return []byte{10}, nil }
+	outHandlers = map[string]Handler{"yml": &mockHandler{}}
+	filePath = "output.yml"
+	assert.NoError(t, readFile(&DirInfo{}))
 }
