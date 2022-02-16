@@ -11,7 +11,7 @@ const extTrimSet = " ."
 
 // outHandlers maps the available Handlers to the extension they handle. Extensions
 // do not contain period(s), and stored as the key in lower-case
-var outHandlers map[string]Handler
+var outHandlers = map[string]Handler{}
 
 /*
 validateExt validates if a Handler exists for a given extension - i.e. simply if an
