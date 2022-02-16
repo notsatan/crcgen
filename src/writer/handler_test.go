@@ -45,6 +45,34 @@ func TestValidateExt(t *testing.T) {
 	}
 }
 
+func TestGetHandler(t *testing.T) {
+	reset()
+
+	// Ensure handler is returned for registered extension, and nil for others
+	outHandlers = map[string]Handler{
+		"mp4": &mockHandler{},
+		"mkv": &mockHandler{},
+		"zip": &mockHandler{},
+		"mp3": &mockHandler{},
+		"7z":  &mockHandler{},
+	}
+
+	for ext, validExt := range map[string]bool{
+		"mp4":    true,
+		".mkv":   true,
+		"  jpeg": false,
+		"mobi":   false,
+		".apk":   false,
+	} {
+		h := getHandler(ext)
+		if validExt {
+			assert.NotNilf(t, h, `nil for valid extension "%s"`, ext)
+		} else {
+			assert.Nilf(t, h, `non-nil for invalid extension "%s"`, ext)
+		}
+	}
+}
+
 func TestAddHandler(t *testing.T) {
 	reset()
 

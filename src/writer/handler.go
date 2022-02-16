@@ -25,6 +25,17 @@ func validateExt(ext string) bool {
 }
 
 /*
+getHandler returns a Handler that can handle the given file extension
+
+Note: Can return nil if no such handler has been registered. It is recommended to
+validate an extension with validateExt before this function
+*/
+func getHandler(ext string) Handler {
+	ext = strings.ToLower(strings.Trim(ext, extTrimSet))
+	return outHandlers[ext]
+}
+
+/*
 AddHandler registers a Handler that will be used to handle a particular output file,
 these handlers are detected based on file extensions
 */
