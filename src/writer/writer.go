@@ -29,10 +29,11 @@ var (
 	fileIsDir = os.FileInfo.IsDir // maps to method IsDir in os.FileInfo
 	closeFile = (*os.File).Close  // maps to method Close in os.File
 
-	osReadFile = os.ReadFile  // maps to os.ReadFile
-	pathStats  = os.Stat      // maps to os.Stat
-	createFile = os.Create    // maps to os.Create
-	absPath    = filepath.Abs // maps to filepath.Abs
+	osReadFile  = os.ReadFile  // maps to os.ReadFile
+	osWriteFile = os.WriteFile // maps to os.WriteFile
+	pathStats   = os.Stat      // maps to os.Stat
+	createFile  = os.Create    // maps to os.Create
+	absPath     = filepath.Abs // maps to filepath.Abs
 )
 
 /*
@@ -220,4 +221,22 @@ func readFile(info *DirInfo) error {
 	handler := getHandler(filepath.Ext(filePath)) // fetch handler based on file name
 	err = handler.Unmarshal(data, info)
 	return errors.Wrapf(err, "(%s/readFile)", pkgName)
+}
+
+/*
+Write writes a DirInfo object to the output file while replacing existing contents in
+the file
+*/
+func Write(info *DirInfo) error {
+	const writePerm = 600 // assigns read, write
+
+	handler := getHandler(filepath.Ext(filePath)) // fetch handler based on file name
+
+	data, err := handler.Marshal(info, true)
+	if err != nil {
+		return errors.Wrapf(err, "(%s/Write)", pkgName)
+	}
+
+	err = osWriteFile(filePath, data, writePerm)
+	return errors.Wrapf(err, "(%s/Write)", pkgName)
 }

@@ -12,6 +12,7 @@ import (
 
 	"github.com/notsatan/crcgen/src/cmd/version"
 	"github.com/notsatan/crcgen/src/logger"
+	_ "github.com/notsatan/crcgen/src/writer/json"
 )
 
 const (

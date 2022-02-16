@@ -20,6 +20,7 @@ func reset() {
 	createFile = os.Create
 	absPath = filepath.Abs
 	osReadFile = os.ReadFile
+	osWriteFile = os.WriteFile
 
 	outHandlers = map[string]Handler{}
 }
@@ -277,10 +278,9 @@ func TestCreateOutFile_CreateFile(t *testing.T) {
 }
 
 func TestReadFile(t *testing.T) {
-	// Ensure `readFile` fails in case of an error, and vice-versa
-
 	reset()
 
+	// Ensure `readFile` fails in case of an error, and vice-versa
 	osReadFile = func(string) ([]byte, error) { return nil, errReadFile }
 	assert.Error(t, readFile(&DirInfo{}))
 
@@ -292,4 +292,9 @@ func TestReadFile(t *testing.T) {
 	outHandlers = map[string]Handler{"yml": &mockHandler{}}
 	filePath = "output.yml"
 	assert.NoError(t, readFile(&DirInfo{}))
+}
+
+func TestWrite(t *testing.T) {
+	reset()
+
 }

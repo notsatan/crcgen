@@ -9,6 +9,10 @@ import (
 	"github.com/notsatan/crcgen/src/writer"
 )
 
+func init() {
+	writer.AddHandler(&jsonHandler{})
+}
+
 type jsonHandler struct{}
 
 func (*jsonHandler) Marshal(info *writer.DirInfo, indent ...bool) ([]byte, error) {
