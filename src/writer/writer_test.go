@@ -20,6 +20,7 @@ func reset() {
 	createFile = os.Create
 	absPath = filepath.Abs
 	osReadFile = os.ReadFile
+	osWriteFile = os.WriteFile
 
 	outHandlers = map[string]Handler{}
 }
@@ -277,10 +278,9 @@ func TestCreateOutFile_CreateFile(t *testing.T) {
 }
 
 func TestReadFile(t *testing.T) {
-	// Ensure `readFile` fails in case of an error, and vice-versa
-
 	reset()
 
+	// Ensure `readFile` fails in case of an error, and vice-versa
 	osReadFile = func(string) ([]byte, error) { return nil, errReadFile }
 	assert.Error(t, readFile(&DirInfo{}))
 
@@ -292,4 +292,40 @@ func TestReadFile(t *testing.T) {
 	outHandlers = map[string]Handler{"yml": &mockHandler{}}
 	filePath = "output.yml"
 	assert.NoError(t, readFile(&DirInfo{}))
+}
+
+// mockHandlerFail is a wrapper over mockHandler where all methods fail - when possible
+type mockHandlerFail struct {
+	mockHandler
+}
+
+func (*mockHandlerFail) FileTypes() []string { return []string{} }
+
+func (*mockHandlerFail) Marshal(*DirInfo, ...bool) ([]byte, error) {
+	return nil, fmt.Errorf("(%s/mockHandlerFail.Marshal): test error", pkgName)
+}
+
+func (*mockHandlerFail) Unmarshal([]byte, *DirInfo) error {
+	return fmt.Errorf("(%s/mockHandlerFail.Unmarshal): test error", pkgName)
+}
+
+func TestWrite(t *testing.T) {
+	reset()
+
+	osWriteFile = func(string, []byte, os.FileMode) error {
+		return fmt.Errorf("(%s/TestWrite): mock error", pkgName) // mock failure
+	}
+
+	// Mock a JSON file, and set a handler that handles JSON file to fail
+	filePath = "/path/to/configs.json"
+	outHandlers = map[string]Handler{"json": &mockHandlerFail{}}
+	assert.Error(t, Write(&DirInfo{})) // expect an error when a handler fails
+
+	// Ensure error is returned when file cannot be written to
+	filePath = "/path/to/configs.yml"
+	outHandlers["yml"] = &mockHandler{}
+	assert.Error(t, Write(&DirInfo{})) // error returned since writing will fail
+
+	osWriteFile = func(string, []byte, os.FileMode) error { return nil } // mock success
+	assert.NoError(t, Write(&DirInfo{}))
 }
