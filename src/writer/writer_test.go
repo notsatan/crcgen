@@ -288,7 +288,11 @@ func TestReadFile(t *testing.T) {
 	osReadFile = func(string) ([]byte, error) { return []byte{}, nil }
 	assert.NoError(t, readFile(&DirInfo{}))
 
-	osReadFile = func(string) ([]byte, error) { return []byte{10}, nil }
+	// Ensure an error is returned if no handler can interact with the output file
+	osReadFile = func(string) ([]byte, error) { return []byte{15}, nil }
+	filePath = "/path/to/file.mp4"
+	assert.Error(t, readFile(&DirInfo{}))
+
 	outHandlers = map[string]Handler{"yml": &mockHandler{}}
 	filePath = "output.yml"
 	assert.NoError(t, readFile(&DirInfo{}))
@@ -315,6 +319,10 @@ func TestWrite(t *testing.T) {
 	osWriteFile = func(string, []byte, os.FileMode) error {
 		return fmt.Errorf("(%s/TestWrite): mock error", pkgName) // mock failure
 	}
+
+	// Ensure an error is returned invalid output file
+	filePath = "/path/to/incorrect-file.mp4"
+	assert.Error(t, Write(&DirInfo{}))
 
 	// Mock a JSON file, and set a handler that handles JSON file to fail
 	filePath = "/path/to/configs.json"

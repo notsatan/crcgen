@@ -218,7 +218,12 @@ func readFile(info *DirInfo) error {
 		return errors.Wrapf(err, "(%s/readFile)", pkgName)
 	}
 
-	handler := getHandler(filepath.Ext(filePath)) // fetch handler based on file name
+	ext := filepath.Ext(filePath)
+	handler := getHandler(ext) // fetch handler based on file name
+	if handler == nil {
+		return fmt.Errorf("(%s/readFile): no handler found for ext `%s`", pkgName, ext)
+	}
+
 	err = handler.Unmarshal(data, info)
 	return errors.Wrapf(err, "(%s/readFile)", pkgName)
 }
@@ -230,7 +235,11 @@ the file
 func Write(info *DirInfo) error {
 	const writePerm = 600 // assigns read, write
 
-	handler := getHandler(filepath.Ext(filePath)) // fetch handler based on file name
+	ext := filepath.Ext(filePath)
+	handler := getHandler(ext) // fetch handler based on file name
+	if handler == nil {
+		return fmt.Errorf("(%s/Write): no handler found for ext `%s`", pkgName, ext)
+	}
 
 	data, err := handler.Marshal(info, true)
 	if err != nil {
