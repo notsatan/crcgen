@@ -46,6 +46,7 @@ var (
 	errAbsPath     = fmt.Errorf("(%s): couldn't convert path to absolute", pkgName)
 	errNotWritable = fmt.Errorf("(%s): path is not writeable", pkgName)
 	errReadFile    = fmt.Errorf("(%s): output file cannot be read", pkgName)
+	errNoHandler   = fmt.Errorf("(%s): no handler found for filetype", pkgName)
 )
 
 // once ensures Start can call inner start function exactly one time
@@ -86,6 +87,13 @@ func IsPathNotWriteableErr(err error) bool {
 }
 
 /*
+IsReadFileErr checks if an error was being caused because the output cannot be read
+*/
+func IsReadFileErr(err error) bool {
+	return errors.Is(err, errReadFile)
+}
+
+/*
 IsPathDirErr checks if an error was caused because the path to output file points to an
 existing directory
 */
@@ -94,10 +102,11 @@ func IsPathDirErr(err error) bool {
 }
 
 /*
-IsReadFileErr checks if an error was being caused because the output cannot be read
+IsHandlerNotFoundErr checks if an error occurred because no handler could be found to
+handle the output file type
 */
-func IsReadFileErr(err error) bool {
-	return errors.Is(err, errReadFile)
+func IsHandlerNotFoundErr(err error) bool {
+	return errors.Is(err, errNoHandler)
 }
 
 /*
@@ -107,8 +116,8 @@ from this package
 Returns error if the output file could not be parsed from the path, if the output file
 contains an invalid extension, or if the path could not be converted to absolute path,
 the path points to an existing directory, or if the path is not writeable. Use the
-functions IsInvalidFileErr, IsInvalidExtErr, IsAbsPathErr, IsPathNotWriteableErr and
-IsPathDirErr to explicitly check for these errors
+functions IsInvalidFileErr, IsInvalidExtErr, IsAbsPathErr, IsPathNotWriteableErr,
+IsReadFileErr, and IsPathDirErr to explicitly check for these errors
 
 Note: This function can be run once (at most)
 */
@@ -128,6 +137,7 @@ func start(confFile string) error {
 	const logTag = "(" + pkgName + "/Start)"
 
 	if path, err := fixPath(confFile); err != nil {
+		logger.Errorf(`%s: failed to fix output filepath: "%s"`, pkgName, confFile)
 		return errors.Wrap(err, logTag)
 	} else {
 		filePath = path
@@ -141,8 +151,7 @@ func start(confFile string) error {
 
 	// Read content from output file, and unmarshal into `RootDir`
 	if err := readFile(&RootDir); err != nil {
-		logger.Errorf("%s: failed to read output file: %v", logTag, err)
-		return errors.Wrap(errReadFile, logTag) // return custom error
+		return errors.Wrap(err, logTag) // return custom error
 	}
 
 	return nil
@@ -213,24 +222,36 @@ contain the contents of the output file
 */
 func readFile(info *DirInfo) error {
 	data, err := osReadFile(filePath)
-	if len(data) == 0 || err != nil {
-		// Direct return if output file has nothing to read, or an error occurred
-		return errors.Wrapf(err, "(%s/readFile)", pkgName)
+	if err != nil {
+		logger.Errorf("(%s/readFile): failed to read output file: %v", pkgName, err)
+		return errors.Wrapf(errReadFile, "(%s/readFile)", pkgName)
+	} else if len(data) == 0 {
+		return nil
 	}
 
 	ext := filepath.Ext(filePath)
 	handler := getHandler(ext) // fetch handler based on file name
 	if handler == nil {
-		return fmt.Errorf("(%s/readFile): no handler found for ext `%s`", pkgName, ext)
+		return errors.Wrapf(errNoHandler, "(%s/readFile)", pkgName)
 	}
 
-	err = handler.Unmarshal(data, info)
-	return errors.Wrapf(err, "(%s/readFile)", pkgName)
+	if err = handler.Unmarshal(data, info); err != nil {
+		logger.Warnf("(%s/readFile): unmarshal caused an error: %v", pkgName, err)
+		return errors.Wrapf(errInvalidFile, "(%s/readFile)", pkgName)
+	}
+
+	return nil
 }
 
 /*
 Write writes a DirInfo object to the output file while replacing existing contents in
 the file
+
+Calls to the function fail if no handler can interact with the given filetype, if the
+file cannot be written to, or if marshaling the DirInfo object fails. Use the functions
+IsHandlerNotFoundErr, and IsPathNotWriteableErr to check against these errors. If
+neither function matches, assume the cause of the error is that the DirInfo object
+cannot be marshall-ed
 */
 func Write(info *DirInfo) error {
 	const writePerm = 600 // assigns read, write
@@ -238,7 +259,8 @@ func Write(info *DirInfo) error {
 	ext := filepath.Ext(filePath)
 	handler := getHandler(ext) // fetch handler based on file name
 	if handler == nil {
-		return fmt.Errorf("(%s/Write): no handler found for ext `%s`", pkgName, ext)
+		logger.Warnf(`(%s/Write): no handler found for extension "%s"`, pkgName, ext)
+		return errors.Wrapf(errNoHandler, "(%s/Write)", pkgName)
 	}
 
 	data, err := handler.Marshal(info, true)
@@ -247,5 +269,10 @@ func Write(info *DirInfo) error {
 	}
 
 	err = osWriteFile(filePath, data, writePerm)
-	return errors.Wrapf(err, "(%s/Write)", pkgName)
+	if err != nil {
+		logger.Warnf("(%s/Write): failed to write to output file: %v", pkgName, err)
+		return errors.Wrapf(errNotWritable, "(%s/Write)", pkgName)
+	}
+
+	return nil
 }

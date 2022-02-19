@@ -73,22 +73,6 @@ func TestIsPathNotWriteableErr(t *testing.T) {
 	}
 }
 
-func TestIsPathDirErr(t *testing.T) {
-	for err, expected := range map[error]bool{
-		nil:                      false,
-		errNotWritable:           false,
-		errPathIsDir:             true,
-		fmt.Errorf("test error"): false,
-		fmt.Errorf(""):           false,
-		fmt.Errorf("(%s): output file has invalid extension", pkgName): false,
-	} {
-		assert.Equalf(
-			t, expected, IsPathDirErr(err),
-			`failed to match "%v" -> "%v"`, expected, err,
-		)
-	}
-}
-
 func TestIsAbsPathErr(t *testing.T) {
 	for err, expected := range map[error]bool{
 		nil:                             false,
@@ -118,6 +102,38 @@ func TestIsReadFileErr(t *testing.T) {
 	} {
 		assert.Equalf(
 			t, expected, IsReadFileErr(err),
+			`failed to match "%v" -> "%v"`, expected, err,
+		)
+	}
+}
+
+func TestIsPathDirErr(t *testing.T) {
+	for err, expected := range map[error]bool{
+		nil:                      false,
+		errNotWritable:           false,
+		errPathIsDir:             true,
+		fmt.Errorf("test error"): false,
+		fmt.Errorf(""):           false,
+		fmt.Errorf("(%s): output file has invalid extension", pkgName): false,
+	} {
+		assert.Equalf(
+			t, expected, IsPathDirErr(err),
+			`failed to match "%v" -> "%v"`, expected, err,
+		)
+	}
+}
+
+func TestIsHandlerNotFoundErr(t *testing.T) {
+	for err, expected := range map[error]bool{
+		nil:                      false,
+		errNoHandler:             true,
+		errPathIsDir:             false,
+		fmt.Errorf("test error"): false,
+		fmt.Errorf(""):           false,
+		fmt.Errorf("(%s): output file has invalid extension", pkgName): false,
+	} {
+		assert.Equalf(
+			t, expected, IsHandlerNotFoundErr(err),
 			`failed to match "%v" -> "%v"`, expected, err,
 		)
 	}
@@ -293,6 +309,12 @@ func TestReadFile(t *testing.T) {
 	filePath = "/path/to/file.mp4"
 	assert.Error(t, readFile(&DirInfo{}))
 
+	// Ensure error is returned if unmarshal fails
+	outHandlers["yaml"] = &mockHandlerFail{}
+	filePath = "output.yaml"
+	assert.True(t, IsInvalidFileErr(readFile(&DirInfo{})))
+
+	// No error should be returned for a successful run
 	outHandlers = map[string]Handler{"yml": &mockHandler{}}
 	filePath = "output.yml"
 	assert.NoError(t, readFile(&DirInfo{}))
@@ -320,9 +342,9 @@ func TestWrite(t *testing.T) {
 		return fmt.Errorf("(%s/TestWrite): mock error", pkgName) // mock failure
 	}
 
-	// Ensure an error is returned invalid output file
+	// Ensure an error is returned if no handler is available for the filetype
 	filePath = "/path/to/incorrect-file.mp4"
-	assert.Error(t, Write(&DirInfo{}))
+	assert.True(t, IsHandlerNotFoundErr(Write(&DirInfo{})))
 
 	// Mock a JSON file, and set a handler that handles JSON file to fail
 	filePath = "/path/to/configs.json"
@@ -332,7 +354,9 @@ func TestWrite(t *testing.T) {
 	// Ensure error is returned when file cannot be written to
 	filePath = "/path/to/configs.yml"
 	outHandlers["yml"] = &mockHandler{}
-	assert.Error(t, Write(&DirInfo{})) // error returned since writing will fail
+
+	// Error returned since writing will fail
+	assert.True(t, IsPathNotWriteableErr(Write(&DirInfo{})))
 
 	osWriteFile = func(string, []byte, os.FileMode) error { return nil } // mock success
 	assert.NoError(t, Write(&DirInfo{}))
