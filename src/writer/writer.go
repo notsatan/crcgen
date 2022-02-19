@@ -9,39 +9,51 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 
 	"github.com/pkg/errors"
-	"github.com/spf13/viper"
 
 	"github.com/notsatan/crcgen/src/logger"
 )
 
 const pkgName = "writer"
 
-var once sync.Once
-
-// output is the central instance of `viper` being used by package `writer`
-var output = viper.New()
+/*
+RootDir contains contents from the existing output file. Populated within the Start
+function. Modifications can be made as needed, use the Write function to write the
+updated contents back to the output file
+*/
+var RootDir DirInfo
 
 var (
-	readViperConfigs = (*viper.Viper).ReadInConfig // maps to viper.ReadInConfig
-	fileIsDir        = os.FileInfo.IsDir           // maps to method IsDir in os.FileInfo
-	closeFile        = (*os.File).Close            // maps to method Close in os.File
+	fileIsDir = os.FileInfo.IsDir // maps to method IsDir in os.FileInfo
+	closeFile = (*os.File).Close  // maps to method Close in os.File
 
-	pathStats  = os.Stat      // maps to os.Stat
-	createFile = os.Create    // maps to os.Create
-	absPath    = filepath.Abs // maps to filepath.Abs
+	osReadFile  = os.ReadFile  // maps to os.ReadFile
+	osWriteFile = os.WriteFile // maps to os.WriteFile
+	pathStats   = os.Stat      // maps to os.Stat
+	createFile  = os.Create    // maps to os.Create
+	absPath     = filepath.Abs // maps to filepath.Abs
 )
 
+/*
+Custom error
+*/
 var (
 	errPathIsDir   = fmt.Errorf("(%s): path points to an existing directory", pkgName)
 	errInvalidFile = fmt.Errorf("(%s): could not detect output file in path", pkgName)
 	errInvalidExt  = fmt.Errorf("(%s): output file has invalid extension", pkgName)
 	errAbsPath     = fmt.Errorf("(%s): couldn't convert path to absolute", pkgName)
 	errNotWritable = fmt.Errorf("(%s): path is not writeable", pkgName)
+	errReadFile    = fmt.Errorf("(%s): output file cannot be read", pkgName)
+	errNoHandler   = fmt.Errorf("(%s): no handler found for filetype", pkgName)
 )
+
+// once ensures Start can call inner start function exactly one time
+var once sync.Once
+
+// filePath contains full path to the output file, resolved and initialized in start
+var filePath string
 
 /*
 IsInvalidFileErr checks if an error returned by package writer was caused because the
@@ -75,11 +87,26 @@ func IsPathNotWriteableErr(err error) bool {
 }
 
 /*
+IsReadFileErr checks if an error was being caused because the output cannot be read
+*/
+func IsReadFileErr(err error) bool {
+	return errors.Is(err, errReadFile)
+}
+
+/*
 IsPathDirErr checks if an error was caused because the path to output file points to an
 existing directory
 */
 func IsPathDirErr(err error) bool {
 	return errors.Is(err, errPathIsDir)
+}
+
+/*
+IsHandlerNotFoundErr checks if an error occurred because no handler could be found to
+handle the output file type
+*/
+func IsHandlerNotFoundErr(err error) bool {
+	return errors.Is(err, errNoHandler)
 }
 
 /*
@@ -89,8 +116,8 @@ from this package
 Returns error if the output file could not be parsed from the path, if the output file
 contains an invalid extension, or if the path could not be converted to absolute path,
 the path points to an existing directory, or if the path is not writeable. Use the
-functions IsInvalidFileErr, IsInvalidExtErr, IsAbsPathErr, IsPathNotWriteableErr and
-IsPathDirErr to explicitly check for these errors
+functions IsInvalidFileErr, IsInvalidExtErr, IsAbsPathErr, IsPathNotWriteableErr,
+IsReadFileErr, and IsPathDirErr to explicitly check for these errors
 
 Note: This function can be run once (at most)
 */
@@ -109,20 +136,25 @@ start initializes package `writer`, setting up the configurations needed
 func start(confFile string) error {
 	const logTag = "(" + pkgName + "/Start)"
 
-	path, err := fixPath(confFile)
-	if err != nil {
+	if path, err := fixPath(confFile); err != nil {
+		logger.Errorf(`%s: failed to fix output filepath: "%s"`, pkgName, confFile)
+		return errors.Wrap(err, logTag)
+	} else {
+		filePath = path
+	}
+
+	// Create output file if needed, ignored if file exists
+	if err := createOutFile(filePath); err != nil {
+		logger.Errorf("%s: failed to create output file: %v", logTag, err)
 		return errors.Wrap(err, logTag)
 	}
 
-	output.SetConfigFile(path)
-
-	err = createOutFile(path) // create output file if needed, ignored if file exists
-	if err != nil {
-		return errors.Wrap(err, logTag)
+	// Read content from output file, and unmarshal into `RootDir`
+	if err := readFile(&RootDir); err != nil {
+		return errors.Wrap(err, logTag) // return custom error
 	}
 
-	err = readViperConfigs(output)
-	return errors.Wrap(err, logTag)
+	return nil
 }
 
 /*
@@ -138,13 +170,8 @@ func fixPath(path string) (string, error) {
 		return "", errors.Wrap(errInvalidFile, logTag)
 	}
 
-	// Extract and validate extension from path - remove `dot`, and convert to lowercase
-	ext := strings.ToLower(strings.TrimLeft(filepath.Ext(path), "."))
-	switch ext {
-	case "json", "yaml", "yml":
-		// supported extensions, ignore
-
-	default:
+	// Extract file extension, and validate the same
+	if ext := filepath.Ext(path); !validateExt(ext) {
 		logger.Errorf(`%s: output file invalid ext detected: "%s"`, logTag, path)
 		return "", errors.Wrap(errInvalidExt, logTag)
 	}
@@ -186,4 +213,66 @@ func createOutFile(path string) error {
 		// Assume failure is caused because the path is not writeable
 		return errors.Wrapf(errNotWritable, "(%s/createOutFile)", pkgName)
 	}
+}
+
+/*
+readFile reads contents of the output file, using these to unmarshal all the data into
+a DirInfo object. When the function completes its execution, the DirInfo object will
+contain the contents of the output file
+*/
+func readFile(info *DirInfo) error {
+	data, err := osReadFile(filePath)
+	if err != nil {
+		logger.Errorf("(%s/readFile): failed to read output file: %v", pkgName, err)
+		return errors.Wrapf(errReadFile, "(%s/readFile)", pkgName)
+	} else if len(data) == 0 {
+		return nil
+	}
+
+	ext := filepath.Ext(filePath)
+	handler := getHandler(ext) // fetch handler based on file name
+	if handler == nil {
+		return errors.Wrapf(errNoHandler, "(%s/readFile)", pkgName)
+	}
+
+	if err = handler.Unmarshal(data, info); err != nil {
+		logger.Warnf("(%s/readFile): unmarshal caused an error: %v", pkgName, err)
+		return errors.Wrapf(errInvalidFile, "(%s/readFile)", pkgName)
+	}
+
+	return nil
+}
+
+/*
+Write writes a DirInfo object to the output file while replacing existing contents in
+the file
+
+Calls to the function fail if no handler can interact with the given filetype, if the
+file cannot be written to, or if marshaling the DirInfo object fails. Use the functions
+IsHandlerNotFoundErr, and IsPathNotWriteableErr to check against these errors. If
+neither function matches, assume the cause of the error is that the DirInfo object
+cannot be marshall-ed
+*/
+func Write(info *DirInfo) error {
+	const writePerm = 600 // assigns read, write
+
+	ext := filepath.Ext(filePath)
+	handler := getHandler(ext) // fetch handler based on file name
+	if handler == nil {
+		logger.Warnf(`(%s/Write): no handler found for extension "%s"`, pkgName, ext)
+		return errors.Wrapf(errNoHandler, "(%s/Write)", pkgName)
+	}
+
+	data, err := handler.Marshal(info, true)
+	if err != nil {
+		return errors.Wrapf(err, "(%s/Write)", pkgName)
+	}
+
+	err = osWriteFile(filePath, data, writePerm)
+	if err != nil {
+		logger.Warnf("(%s/Write): failed to write to output file: %v", pkgName, err)
+		return errors.Wrapf(errNotWritable, "(%s/Write)", pkgName)
+	}
+
+	return nil
 }
