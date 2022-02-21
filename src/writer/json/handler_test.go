@@ -20,7 +20,7 @@ func TestJsonHandler_Marshal(t *testing.T) {
 		Path:    "/test/path",
 		LastMod: 0,
 		Files: []writer.FileInfo{
-			{Name: "test-file", Size: 300},
+			{Path: "/path/to/test/file.json", Size: 300},
 		},
 	}
 
@@ -30,7 +30,7 @@ func TestJsonHandler_Marshal(t *testing.T) {
 	"Dirs": null,
 	"Files": [
 		{
-			"Name": "test-file",
+			"Path": "/path/to/test/file.json",
 			"Checksums": {
 				"CRC32": ""
 			},
@@ -61,7 +61,7 @@ func TestJsonHandler_Unmarshal(t *testing.T) {
   "Dirs": null,
   "Files": [
     {
-      "Name": "test-file",
+      "Path": "/path/to/test/file.json",
       "Checksums": {
         "CRC32": ""
       },
@@ -78,7 +78,7 @@ func TestJsonHandler_Unmarshal(t *testing.T) {
 		Path:    "/test/path",
 		LastMod: 0,
 		Files: []writer.FileInfo{
-			{Name: "test-file", Size: 300},
+			{Path: "/path/to/test/file.json", Size: 300},
 		},
 	}
 

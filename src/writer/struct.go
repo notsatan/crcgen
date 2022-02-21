@@ -14,8 +14,8 @@ FileInfo defines the structure of the output for an individual file - this will 
 written to the output file
 */
 type FileInfo struct {
-	// Name is the file name
-	Name string
+	// Path contains the full path to the file
+	Path string
 
 	// Checksums contains checksums generated for the file
 	Checksums Checksums
@@ -26,6 +26,13 @@ type FileInfo struct {
 	// LastMod indicates time when the file was last modified. Represents epoch time,
 	// not intended to be human-readable
 	LastMod int64
+}
+
+/*
+Name returns the name of the file
+*/
+func (file *FileInfo) Name() string {
+	return filepath.Base(file.Path)
 }
 
 /*

@@ -20,6 +20,19 @@ func TestDirInfo_Name(t *testing.T) {
 	}
 }
 
+func TestFileInfo_Name(t *testing.T) {
+	for input, expected := range map[string]string{
+		"/path/to/file.mp4":      "file.mp4",
+		"/path/to/file new.json": "file new.json",
+		"/root/path/user.mkv":    "user.mkv",
+	} {
+		result := (&FileInfo{Path: input}).Name()
+		assert.Equalf(
+			t, expected, result, `(input, output): "%s", "%s"`, input, result,
+		)
+	}
+}
+
 func TestDirInfo_CalcModTime_DirectReturn(t *testing.T) {
 	// Ensure the function performs a direct return if last mod time is specified, and
 	// the result should be an int64
