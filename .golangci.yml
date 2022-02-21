@@ -99,7 +99,7 @@ linters-settings:
 
   funlen:
     # Force smaller functions with fewer statements - leads to reduced complexity
-    lines: 30
+    lines: 45
     statements: 25
 
   gci:
